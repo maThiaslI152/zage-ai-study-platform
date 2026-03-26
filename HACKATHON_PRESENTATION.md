@@ -199,17 +199,22 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 
 | รายการ | ฿/เดือน |
 |---|---|
-| AWS พื้นฐาน | ฿192 |
-| AI — Free (60 คน × ฿0.07) | ฿4 |
-| AI — Standard (30 คน × ฿16) | ฿480 |
-| AI — Premium (10 คน × ฿37) | ฿370 |
-| **ต้นทุนรวม** | **฿1,046** |
+| AWS พื้นฐาน (S3, Cognito, API GW, Lambda, DynamoDB) | ฿192 |
+| Textract (OCR เฉพาะภาพ/สแกน ~3,000 หน้า) | ฿150 |
+| AI — Free (60 คน × Nova Micro จำกัด) | ฿4 |
+| AI — Standard (30 คน × ฿16 Hybrid) | ฿480 |
+| AI — Premium (10 คน × ฿37 Haiku) | ฿370 |
+| Overhead +20% (retries, cache miss, CloudWatch, spikes) | ฿239 |
+| **ต้นทุนรวม (realistic)** | **฿1,435** |
+
+> หมายเหตุ: Overhead 20% ครอบคลุม — AI retries จาก timeout/error, cache miss ที่ต้อง regenerate,
+> CloudWatch Logs, DynamoDB burst reads ช่วง peak, และ Textract สำหรับไฟล์สแกนที่มากกว่าคาด
 
 ### ราคาขาย & กำไร
 
 | Plan | ราคา/เดือน | จำนวน | รายได้ |
 |---|---|---|---|
-| Free | ฿0 | 60 คน | ฿0 |
+| Free | ฿0 | 60 คน | ฿0 (ต้นทุน -฿4 AI -฿115 infra share) |
 | Standard | ฿79 | 30 คน | ฿2,370 |
 | Premium | ฿179 | 10 คน | ฿1,790 |
 | **รายได้รวม** | | | **฿4,160** |
@@ -217,10 +222,14 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 | | ฿/เดือน |
 |---|---|
 | รายได้ | ฿4,160 |
-| ต้นทุน | -฿1,046 |
-| **กำไร** | **฿3,114** |
-| **Gross Margin** | **75%** |
-| **Break-even** | **~13 paying users** |
+| ต้นทุน (realistic) | -฿1,435 |
+| **กำไร** | **฿2,725** |
+| **Gross Margin** | **65%** |
+| **ต้นทุนต่อ paying user** | **฿36** |
+| **Break-even** | **~18 paying users** |
+
+> Free tier เป็น user acquisition cost — ฿2/คน/เดือน เพื่อดึงผู้ใช้เข้ามาแล้ว convert เป็น paid
+> ถ้า conversion rate 40% (60 free → 24 upgrade) จะคืนทุน free tier ภายในเดือนแรก
 
 ### Quota ต่อ Plan
 
@@ -234,6 +243,7 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 | AI Model | Nova Micro (จำกัด) | Hybrid (Haiku+Nova) | Claude Haiku ทั้งหมด |
 | Custom quiz prompt | ✗ | ✓ | ✓ |
 | AI study suggestion | ✗ | ✓ | ✓ |
+| Export สรุป | ✗ | ✗ | ✓ |
 
 ---
 
