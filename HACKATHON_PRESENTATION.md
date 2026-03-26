@@ -168,14 +168,14 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 
 ### ต้นทุน AI ต่อ plan (จากข้อมูลจริง: ~67 calls/คน/เดือน)
 
-#### Free Plan — ใช้ Free Model (OpenRouter)
+#### Free Plan — ใช้ Nova Micro (Bedrock) แบบจำกัด
 | รายการ | Quota | AI Model | ต้นทุน/60 คน |
 |---|---|---|---|
 | วิชา | 2 วิชา | - | - |
 | เอกสาร | 5 ไฟล์ | - | - |
-| สรุป + Flashcard + Quiz | 5 ชุด | Free models | ฿0 |
-| Chat | 10 ข้อความ/เอกสาร | Free models | ฿0 |
-| **ต้นทุน AI** | | | **฿0** |
+| สรุป + Flashcard + Quiz | 5 ชุด | Nova Micro | ฿3 |
+| Chat | 10 ข้อความ/เอกสาร | Nova Micro | ฿1 |
+| **ต้นทุน AI** | | | **฿4** |
 
 #### Standard Plan — Hybrid (Haiku สรุป/Quiz + Nova Micro Chat)
 | รายการ | Quota | ต้นทุน/คน/เดือน | 30 คน |
@@ -200,10 +200,10 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 | รายการ | ฿/เดือน |
 |---|---|
 | AWS พื้นฐาน | ฿192 |
-| AI — Free (60 คน × ฿0) | ฿0 |
+| AI — Free (60 คน × ฿0.07) | ฿4 |
 | AI — Standard (30 คน × ฿16) | ฿480 |
 | AI — Premium (10 คน × ฿37) | ฿370 |
-| **ต้นทุนรวม** | **฿1,042** |
+| **ต้นทุนรวม** | **฿1,046** |
 
 ### ราคาขาย & กำไร
 
@@ -217,8 +217,8 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 | | ฿/เดือน |
 |---|---|
 | รายได้ | ฿4,160 |
-| ต้นทุน | -฿1,042 |
-| **กำไร** | **฿3,118** |
+| ต้นทุน | -฿1,046 |
+| **กำไร** | **฿3,114** |
 | **Gross Margin** | **75%** |
 | **Break-even** | **~13 paying users** |
 
@@ -231,7 +231,7 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 | AI calls/วัน | 10 | 50 | 200 |
 | Chat/เอกสาร | 10 | 20 | 50 |
 | Quiz/เอกสาร | 3 | 10 | ไม่จำกัด |
-| AI Model | Free models | Hybrid (Haiku+Nova) | Claude Haiku ทั้งหมด |
+| AI Model | Nova Micro (จำกัด) | Hybrid (Haiku+Nova) | Claude Haiku ทั้งหมด |
 | Custom quiz prompt | ✗ | ✓ | ✓ |
 | AI study suggestion | ✗ | ✓ | ✓ |
 
