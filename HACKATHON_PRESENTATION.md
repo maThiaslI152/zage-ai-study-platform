@@ -138,6 +138,22 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 
 ## 💰 Pricing & Business Model (100 ผู้ใช้, 1 USD ≈ 34 THB)
 
+### 📊 ข้อมูลจริงจากการทดสอบ (Real Usage Data)
+
+จากการทดสอบจริง 1 ผู้ใช้ × 3 เอกสาร:
+
+| รายการ | ค่าจริง |
+|---|---|
+| API calls ทั้งหมด | 25 ครั้ง (20 สำเร็จ, 5 ยกเลิก) |
+| Input tokens รวม | 237,898 tokens |
+| Output tokens รวม | 33,233 tokens |
+| เฉลี่ยต่อ call | ~12,000 input + ~1,700 output |
+| Calls ต่อเอกสาร | ~7 ครั้ง (summary + flashcard + quiz + chat) |
+
+**ถ้าใช้ Bedrock จริง session นี้จะเสีย:**
+- Claude Haiku: ฿11 (ทั้ง session)
+- Nova Micro: ฿0.44 (ทั้ง session)
+
 ### ต้นทุน AWS พื้นฐาน (ทุก plan ใช้ร่วมกัน)
 
 | บริการ | ต้นทุน/เดือน |
@@ -150,52 +166,44 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 | Textract (เฉพาะภาพ, ~3,000 หน้า) | ฿150 |
 | **รวม AWS พื้นฐาน** | **฿192/เดือน** |
 
-### ต้นทุน AI ต่อ plan
+### ต้นทุน AI ต่อ plan (จากข้อมูลจริง: ~67 calls/คน/เดือน)
 
-#### Free Plan — ใช้ Free Model (OpenRouter free tier)
-| รายการ | ต่อคน/เดือน | 60 คน | ต้นทุน |
+#### Free Plan — ใช้ Free Model (OpenRouter)
+| รายการ | Quota | AI Model | ต้นทุน/60 คน |
 |---|---|---|---|
 | วิชา | 2 วิชา | - | - |
 | เอกสาร | 5 ไฟล์ | - | - |
-| สรุป | 5 ครั้ง | 300 | ฿0 (free model) |
-| Flashcard | 5 ครั้ง | 300 | ฿0 |
-| Quiz | 3 ครั้ง | 180 | ฿0 |
-| Chat | 10 ข้อความ/เอกสาร | 600 | ฿0 |
+| สรุป + Flashcard + Quiz | 5 ชุด | Free models | ฿0 |
+| Chat | 10 ข้อความ/เอกสาร | Free models | ฿0 |
 | **ต้นทุน AI** | | | **฿0** |
 
-#### Standard Plan — Hybrid (Claude Haiku สรุป/Quiz + Nova Micro Chat)
-| รายการ | ต่อคน/เดือน | 30 คน | ต้นทุน |
+#### Standard Plan — Hybrid (Haiku สรุป/Quiz + Nova Micro Chat)
+| รายการ | Quota | ต้นทุน/คน/เดือน | 30 คน |
 |---|---|---|---|
-| วิชา | ไม่จำกัด | - | - |
 | เอกสาร | 20 ไฟล์ | - | - |
-| สรุป (Haiku) | 20 ครั้ง | 600 | ฿170 |
-| Flashcard (Haiku) | 10 ครั้ง | 300 | ฿85 |
-| Quiz (Haiku) | 10 ครั้ง | 300 | ฿85 |
-| Chat (Nova Micro) | 20 ข้อความ/เอกสาร | 6,000 | ฿50 |
-| Quiz suggestion (Nova) | 10 ครั้ง | 300 | ฿5 |
-| **ต้นทุน AI** | | | **฿395** |
+| สรุป + Flashcard + Quiz (Haiku) | 20 ชุด | ฿11 | ฿330 |
+| Chat (Nova Micro) | 20 msg/เอกสาร | ฿0.50 | ฿15 |
+| Quiz suggestion (Nova) | 10 ครั้ง | ฿0.05 | ฿2 |
+| **ต้นทุน AI** | | **฿16/คน** | **฿480** |
 
 #### Premium Plan — Claude Haiku ทุกฟีเจอร์ (Bedrock native)
-| รายการ | ต่อคน/เดือน | 10 คน | ต้นทุน |
+| รายการ | Quota | ต้นทุน/คน/เดือน | 10 คน |
 |---|---|---|---|
-| วิชา | ไม่จำกัด | - | - |
 | เอกสาร | ไม่จำกัด | - | - |
-| สรุป (Haiku) | ไม่จำกัด | 200 | ฿57 |
-| Flashcard (Haiku) | ไม่จำกัด | 100 | ฿28 |
-| Quiz (Haiku) | ไม่จำกัด | 200 | ฿57 |
-| Chat (Haiku) | 50 ข้อความ/เอกสาร | 5,000 | ฿425 |
-| Quiz suggestion (Haiku) | ไม่จำกัด | 200 | ฿17 |
-| **ต้นทุน AI** | | | **฿584** |
+| สรุป + Flashcard + Quiz (Haiku) | ไม่จำกัด | ฿22 | ฿220 |
+| Chat (Haiku) | 50 msg/เอกสาร | ฿11 | ฿110 |
+| Quiz suggestion (Haiku) | ไม่จำกัด | ฿4 | ฿40 |
+| **ต้นทุน AI** | | **฿37/คน** | **฿370** |
 
 ### สรุปต้นทุนรวม (100 ผู้ใช้: 60 Free + 30 Standard + 10 Premium)
 
 | รายการ | ฿/เดือน |
 |---|---|
 | AWS พื้นฐาน | ฿192 |
-| AI — Free (60 คน) | ฿0 |
-| AI — Standard (30 คน) | ฿395 |
-| AI — Premium (10 คน) | ฿584 |
-| **ต้นทุนรวม** | **฿1,171** |
+| AI — Free (60 คน × ฿0) | ฿0 |
+| AI — Standard (30 คน × ฿16) | ฿480 |
+| AI — Premium (10 คน × ฿37) | ฿370 |
+| **ต้นทุนรวม** | **฿1,042** |
 
 ### ราคาขาย & กำไร
 
@@ -209,10 +217,10 @@ Poll ทุก 3 วินาที → ready → Auto-generate
 | | ฿/เดือน |
 |---|---|
 | รายได้ | ฿4,160 |
-| ต้นทุน | -฿1,171 |
-| **กำไร** | **฿2,989** |
-| **Gross Margin** | **72%** |
-| **Break-even** | **~15 paying users** |
+| ต้นทุน | -฿1,042 |
+| **กำไร** | **฿3,118** |
+| **Gross Margin** | **75%** |
+| **Break-even** | **~13 paying users** |
 
 ### Quota ต่อ Plan
 

@@ -5,7 +5,7 @@ const BASE_URL = import.meta.env.VITE_API_URL
 // Model provider state — persisted in localStorage
 const MODEL_KEY = 'zage_model_provider'
 export const MODEL_OPTIONS = [
-  { id: 'openrouter-auto', label: 'Auto Router', desc: 'อัตโนมัติ, เลือกโมเดลที่ดีที่สุด' },
+  { id: 'local', label: 'LM Studio (Local)', desc: 'localhost:1234' },
   { id: 'openrouter', label: 'MiniMax M2.5', desc: 'ฟรี, ภาษาไทยดี' },
   { id: 'openrouter-qwen', label: 'Qwen3 80B', desc: 'ฟรี, คุณภาพสูง' },
   { id: 'openrouter-llama', label: 'Llama 3.3 70B', desc: 'ฟรี, Meta' },
@@ -20,7 +20,7 @@ export const MODEL_OPTIONS = [
 ]
 
 export function getModelProvider() {
-  return localStorage.getItem(MODEL_KEY) || 'openrouter-auto'
+  return localStorage.getItem(MODEL_KEY) || 'local'
 }
 
 export function setModelProvider(provider) {

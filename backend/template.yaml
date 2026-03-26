@@ -17,7 +17,7 @@ Globals:
         UPLOAD_BUCKET: !Ref UploadBucket
         BEDROCK_REGION: ap-southeast-1
         BEDROCK_MODEL_ID: global.anthropic.claude-haiku-4-5-20251001
-        OPENROUTER_API_KEY: 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
+        OPENROUTER_API_KEY: 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
         POWERTOOLS_SERVICE_NAME: zage
 
 Resources:

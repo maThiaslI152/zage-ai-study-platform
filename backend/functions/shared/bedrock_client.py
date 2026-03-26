@@ -77,6 +77,12 @@ MODELS = {
         "type": "openrouter",
         "label": "Auto Router",
     },
+    "local": {
+        "id": "local-model",
+        "type": "lmstudio",
+        "endpoint": "http://10.147.17.214:1234",
+        "label": "LM Studio (Local)",
+    },
 }
 
 DEFAULT_PROVIDER = os.environ.get("DEFAULT_MODEL_PROVIDER", "openrouter-auto")
@@ -196,6 +202,38 @@ def _invoke_openrouter(model_id: str, prompt: str, max_tokens: int, system: str)
         raise RuntimeError(f"OpenRouter {exc.code}: {body}") from exc
 
 
+# ─── LM Studio (Local) ──────────────────────────────────────────────────────
+
+def _invoke_lmstudio(endpoint: str, prompt: str, max_tokens: int, system: str) -> str:
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    payload = json.dumps({
+        "model": "local-model",
+        "max_tokens": max_tokens,
+        "messages": messages,
+        "temperature": 0.7,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{endpoint}/v1/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            content = result["choices"][0]["message"].get("content", "")
+            if not content:
+                raise RuntimeError("LM Studio returned empty response")
+            return content
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"LM Studio unreachable ({endpoint}): {exc}") from exc
+
+
 # ─── Unified interface ──────────────────────────────────────────────────────
 
 def invoke_model(prompt: str, max_tokens: int = 1024, system: str = "", provider: str = "") -> str:
@@ -209,6 +247,8 @@ def invoke_model(prompt: str, max_tokens: int = 1024, system: str = "", provider
             return _invoke_bedrock_nova(model["id"], prompt, max_tokens, system)
         elif model["type"] == "openrouter":
             return _invoke_openrouter(model["id"], prompt, max_tokens, system)
+        elif model["type"] == "lmstudio":
+            return _invoke_lmstudio(model.get("endpoint", "http://10.147.17.214:1234"), prompt, max_tokens, system)
         else:
             raise RuntimeError(f"Unknown model type: {model['type']}")
     except Exception as exc:
