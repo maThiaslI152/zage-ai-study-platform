@@ -1,0 +1,580 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Zage - AI Study Assistant Backend
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        DOCUMENTS_TABLE: !Ref DocumentsTable
+        CHATS_TABLE: !Ref ChatsTable
+        FLASHCARDS_TABLE: !Ref FlashcardsTable
+        SUBJECTS_TABLE: !Ref SubjectsTable
+        QUIZZES_TABLE: !Ref QuizzesTable
+        UPLOAD_BUCKET: !Ref UploadBucket
+        BEDROCK_REGION: ap-southeast-1
+        BEDROCK_MODEL_ID: global.anthropic.claude-haiku-4-5-20251001
+        OPENROUTER_API_KEY: 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
+        POWERTOOLS_SERVICE_NAME: zage
+
+Resources:
+
+  # ─── Cognito ────────────────────────────────────────────────────────────────
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: zage-user-pool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: false
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: zage-web-client
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      PreventUserExistenceErrors: ENABLED
+
+  # ─── S3 ─────────────────────────────────────────────────────────────────────
+
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "zage-uploads-${AWS::AccountId}"
+      LifecycleConfiguration:
+        Rules:
+          - Id: delete-failed-uploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - HEAD
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3600
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "zage-frontend-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+
+  # ─── DynamoDB ───────────────────────────────────────────────────────────────
+
+  DocumentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: zage-documents
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: documentId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: documentId
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  ChatsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: zage-chats
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: documentId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: documentId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+
+  FlashcardsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: zage-flashcards
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: documentId
+          AttributeType: S
+        - AttributeName: cardId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: documentId
+          KeyType: HASH
+        - AttributeName: cardId
+          KeyType: RANGE
+
+  SubjectsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: zage-subjects
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: subjectId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: subjectId
+          KeyType: RANGE
+
+  QuizzesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: zage-quizzes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: documentId
+          AttributeType: S
+        - AttributeName: quizId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: documentId
+          KeyType: HASH
+        - AttributeName: quizId
+          KeyType: RANGE
+
+  # ─── API Gateway ─────────────────────────────────────────────────────────────
+
+  ZageApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: zage-api
+      StageName: prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Model-Provider'"
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowCredentials: false
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingBurstLimit: 20
+          ThrottlingRateLimit: 10
+
+  # ─── Lambda: subjects ──────────────────────────────────────────────────────
+
+  SubjectsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-subjects
+      CodeUri: functions/
+      Handler: subjects.app.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubjectsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref DocumentsTable
+      Events:
+        List:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /subjects
+            Method: GET
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /subjects
+            Method: POST
+        Delete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /subjects/{subjectId}
+            Method: DELETE
+
+  # ─── Lambda: upload_url ──────────────────────────────────────────────────────
+
+  UploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-upload-url
+      CodeUri: functions/
+      Handler: upload_url.app.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - s3:PutObject
+            Resource: !Sub "${UploadBucket.Arn}/*"
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /upload/url
+            Method: POST
+
+  # ─── Lambda: process_document ────────────────────────────────────────────────
+
+  ProcessDocumentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-process-document
+      CodeUri: functions/
+      Handler: process_document.app.handler
+      Timeout: 120
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: !Sub "${UploadBucket.Arn}/*"
+        - Statement:
+            Effect: Allow
+            Action:
+              - textract:DetectDocumentText
+              - textract:AnalyzeDocument
+              - textract:StartDocumentTextDetection
+              - textract:GetDocumentTextDetection
+            Resource: '*'
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/process
+            Method: POST
+
+  # ─── Lambda: check_status ──────────────────────────────────────────────────────
+
+  CheckStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-check-status
+      CodeUri: functions/
+      Handler: check_status.app.handler
+      Timeout: 15
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - textract:GetDocumentTextDetection
+            Resource: '*'
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/status
+            Method: GET
+
+  # ─── Lambda: summarize ───────────────────────────────────────────────────────
+
+  SummarizeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-summarize
+      CodeUri: functions/
+      Handler: summarize.app.handler
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+            Resource: '*'
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/summarize
+            Method: POST
+
+  # ─── Lambda: chat ────────────────────────────────────────────────────────────
+
+  ChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-chat
+      CodeUri: functions/
+      Handler: chat.app.handler
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ChatsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+            Resource: '*'
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/chat
+            Method: POST
+
+  # ─── Lambda: flashcards ──────────────────────────────────────────────────────
+
+  FlashcardsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-flashcards
+      CodeUri: functions/
+      Handler: flashcards.app.handler
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FlashcardsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+            Resource: '*'
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/flashcards
+            Method: POST
+
+  # ─── Lambda: quiz ──────────────────────────────────────────────────────────
+
+  QuizFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-quiz
+      CodeUri: functions/
+      Handler: quiz.app.handler
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref QuizzesTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+            Resource: '*'
+      Events:
+        Generate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/quiz
+            Method: POST
+        List:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/quiz
+            Method: GET
+        Submit:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/quiz/{quizId}/submit
+            Method: POST
+        GetQuiz:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/quiz/{quizId}
+            Method: GET
+
+  # ─── Lambda: list_documents ──────────────────────────────────────────────────
+
+  DeleteDocumentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-delete-document
+      CodeUri: functions/
+      Handler: delete_document.app.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ChatsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FlashcardsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}
+            Method: DELETE
+
+  GetFileUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-get-file-url
+      CodeUri: functions/
+      Handler: get_file_url.app.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DocumentsTable
+        - Statement:
+            Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: !Sub "${UploadBucket.Arn}/*"
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents/{documentId}/file
+            Method: GET
+
+  ResetQuotaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-reset-quota
+      CodeUri: functions/
+      Handler: reset_quota.app.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /debug/reset-quota
+            Method: POST
+
+  ListDocumentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: zage-list-documents
+      CodeUri: functions/
+      Handler: list_documents.app.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DocumentsTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ZageApi
+            Path: /documents
+            Method: GET
+
+# ─── Outputs ────────────────────────────────────────────────────────────────
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway base URL — set as VITE_API_URL in frontend/.env.local
+    Value: !Sub "https://${ZageApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+    Export:
+      Name: ZageApiUrl
+
+  UserPoolId:
+    Description: Cognito User Pool ID — set as VITE_USER_POOL_ID
+    Value: !Ref UserPool
+    Export:
+      Name: ZageUserPoolId
+
+  UserPoolClientId:
+    Description: Cognito App Client ID — set as VITE_USER_POOL_CLIENT_ID
+    Value: !Ref UserPoolClient
+    Export:
+      Name: ZageUserPoolClientId
+
+  UploadBucket:
+    Description: S3 upload bucket name — set as VITE_UPLOAD_BUCKET
+    Value: !Ref UploadBucket
+    Export:
+      Name: ZageUploadBucket
+
+  FrontendUrl:
+    Description: S3 static website URL for the React SPA
+    Value: !Sub "http://${FrontendBucket}.s3-website-${AWS::Region}.amazonaws.com"
+    Export:
+      Name: ZageFrontendUrl
+
+  FrontendBucket:
+    Description: S3 bucket for the React SPA (sync build/ here after deploy)
+    Value: !Ref FrontendBucket
+    Export:
+      Name: ZageFrontendBucket

@@ -1,0 +1,5 @@
+# boto3 is pre-installed in the Lambda Python 3.12 runtime.
+# Add third-party packages here only if needed.
+#
+# boto3>=1.35.0   # uncomment for local sam local invoke testing
+PyPDF2>=3.0.0

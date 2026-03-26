@@ -1,0 +1,43 @@
+# ============ Secrets & Config ============
+frontend/.env.local
+frontend/.env.*.local
+backend/.env
+.env
+
+# AWS credentials
+.aws/
+aws-exports.js
+
+# SAM deploy output
+backend/.aws-sam/
+backend/samconfig.toml
+
+# ============ Dependencies ============
+node_modules/
+frontend/node_modules/
+
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+backend/functions/**/package/
+
+# ============ Build Output ============
+frontend/dist/
+frontend/build/
+*.zip
+
+# ============ Editor ============
+.vscode/
+.idea/
+.claude/
+.kiro/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ============ Logs ============
+*.log
+npm-debug.log*
