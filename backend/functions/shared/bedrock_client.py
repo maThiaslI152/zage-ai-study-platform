@@ -72,9 +72,14 @@ MODELS = {
         "type": "openrouter",
         "label": "Llama 3.3 70B",
     },
+    "openrouter-auto": {
+        "id": "openrouter/auto",
+        "type": "openrouter",
+        "label": "Auto Router",
+    },
 }
 
-DEFAULT_PROVIDER = os.environ.get("DEFAULT_MODEL_PROVIDER", "openrouter")
+DEFAULT_PROVIDER = os.environ.get("DEFAULT_MODEL_PROVIDER", "openrouter-auto")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 
 _CHARS_PER_TOKEN = 4
